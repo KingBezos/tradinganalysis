@@ -2947,7 +2947,7 @@ def main():
 
         # Results
         if st.session_state.nasdaq_results:
-            filtered_results = list(st.session_state.nasdaq_results)
+            filtered_results = [r for r in st.session_state.nasdaq_results if r.get("rules", {}).get("R1", {}).get("verdict") == "PASS"]
             if sort_order == "Ticker Symbol":
                 filtered_results.sort(key=lambda x: x.get("ticker", ""))
             elif sort_order == "R1 Gate Value (High to Low)":
@@ -2989,7 +2989,7 @@ def main():
                             st.session_state.selected_nasdaq_ticker = ""
                             st.rerun()
                             
-                    res = next((item for item in filtered_results if item["ticker"] == selected_t), None)
+                    res = next((item for item in st.session_state.nasdaq_results if item["ticker"] == selected_t), None)
                     if res:
                         if not res.get("full", False):
                             with st.spinner(f"Loading detailed metrics for {selected_t}…"):
