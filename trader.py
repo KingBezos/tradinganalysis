@@ -2311,6 +2311,18 @@ def render_chart(ticker_data):
 def render_result(r, raw_data=None):
     overall  = r["overall"]
     score    = r["numeric_score"]
+    
+    # Override for R1-only scanner mode to show R1 gate's status as overall status
+    active_mode = ""
+    try:
+        if "app_mode" in st.session_state:
+            active_mode = st.session_state["app_mode"]
+    except Exception:
+        pass
+    if active_mode == "⚡ NASDAQ R1 Scanner":
+        r1_rule = r.get("rules", {}).get("R1", {})
+        overall = r1_rule.get("verdict", "WARN")
+        score = 10 if overall == "PASS" else (5 if overall == "WARN" else 1)
     sc       = score_color_hex(score)
     bg       = score_bg_hex(score)
     rules    = r["rules"]
@@ -2758,7 +2770,7 @@ def main():
             progress_pct = scanned_items / total_items if total_items > 0 else 1.0
             st.progress(progress_pct)
             if st.session_state.selected_sector_ticker:
-                st.caption(f"Progress: {scanned_items}/{total_items} complete. (Scan paused while inspecting details)")
+                st.caption(f"Progress: {scanned_items}/{total_items} complete. (Scanning in background...)")
             else:
                 st.caption(f"Progress: {scanned_items}/{total_items} complete.")
                 if st.session_state.bulk_queue:
@@ -2913,7 +2925,7 @@ def main():
             progress_pct = scanned_items / total_items if total_items > 0 else 1.0
             st.progress(progress_pct)
             if st.session_state.selected_nasdaq_ticker:
-                st.caption(f"Progress: {scanned_items}/{total_items} complete. (Scan paused while inspecting details)")
+                st.caption(f"Progress: {scanned_items}/{total_items} complete. (Scanning in background...)")
             else:
                 st.caption(f"Progress: {scanned_items}/{total_items} complete.")
                 if st.session_state.nasdaq_queue:
@@ -2949,7 +2961,7 @@ def main():
                 with col_list:
                     for r in filtered_results:
                         t       = r["ticker"]
-                        overall = r["overall"]
+                        overall = r["rules"]["R1"]["verdict"] if (r.get("rules") and "R1" in r["rules"]) else r["overall"]
                         sc      = VERDICT_COLOR.get(overall, "#1a7a3c")
                         bg      = VERDICT_BG.get(overall, "#e6f4ea")
                         
@@ -2997,7 +3009,7 @@ def main():
             else:
                 for r in filtered_results:
                     t       = r["ticker"]
-                    overall = r["overall"]
+                    overall = r["rules"]["R1"]["verdict"] if (r.get("rules") and "R1" in r["rules"]) else r["overall"]
                     sc      = VERDICT_COLOR.get(overall, "#1a7a3c")
                     bg      = VERDICT_BG.get(overall, "#e6f4ea")
                     r1_val  = r.get("r1_details", {}).get("central_ev", 0.0) if r.get("r1_details") else 3.0
@@ -3027,8 +3039,7 @@ def main():
     # ── Incremental Scanning Processor (Sector Mode) ──
     if (st.session_state.app_mode == "🔍 Sector Universe Scanner"
             and st.session_state.bulk_scanning
-            and st.session_state.bulk_queue
-            and not st.session_state.selected_sector_ticker):
+            and st.session_state.bulk_queue):
         batch_size = 30
         batch_tickers = []
         for _ in range(batch_size):
@@ -3065,8 +3076,7 @@ def main():
     # ── Incremental Scanning Processor (NASDAQ R1 Mode) ──
     if (st.session_state.app_mode == "⚡ NASDAQ R1 Scanner" 
             and st.session_state.nasdaq_scanning 
-            and st.session_state.nasdaq_queue 
-            and not st.session_state.selected_nasdaq_ticker):
+            and st.session_state.nasdaq_queue):
         batch_size = 30
         batch_tickers = []
         for _ in range(batch_size):
