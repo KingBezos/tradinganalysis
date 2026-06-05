@@ -221,7 +221,8 @@ def build_scan_universe(category="  🏥 Biotechnology"):
             tickers.update(_yf_screener(sid, count=50))
             
     clean = [t for t in tickers
-             if t and not any(c in t for c in ["-",".","^","=","/"]) 
+             if t and t.upper() not in ("JEN", "CHAD")
+             and not any(c in t for c in ["-",".","^","=","/"]) 
              and not t.endswith("W") and not t.endswith("U") and len(t) <= 5]
     result = sorted(set(clean)) # Let Run Scan slice using limit
     return result
@@ -3016,6 +3017,8 @@ def main():
         target_parent, _ = resolve_sector_and_sub(st.session_state.active_category)
         for next_ticker in batch_tickers:
             st.session_state.bulk_scanned_count += 1
+            if next_ticker.upper() in ("JEN", "CHAD"):
+                continue
             _time.sleep(_random.uniform(0.15, 0.3))
             try:
                 raw_data = fetch_ticker_data(next_ticker, full=False)
@@ -3046,6 +3049,8 @@ def main():
                 
         for next_ticker in batch_tickers:
             st.session_state.nasdaq_scanned_count += 1
+            if next_ticker.upper() in ("JEN", "CHAD"):
+                continue
             _time.sleep(_random.uniform(0.15, 0.3))
             try:
                 raw_data = fetch_ticker_data(next_ticker, full=False)
