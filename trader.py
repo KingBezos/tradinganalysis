@@ -2137,6 +2137,27 @@ div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
     text-shadow: 1px 1px 6px rgba(0,0,0,0.3);
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
+
+@keyframes rose-glow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.rose-box {
+    background: linear-gradient(45deg, #ff758c, #ff7eb3, #ff85a2, #fbc2eb, #a1c4fd, #ff758c);
+    background-size: 400% 400%;
+    animation: rose-glow 12s ease infinite;
+    padding: 16px 20px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 24px;
+    font-weight: 800;
+    font-size: 20px;
+    color: #ffffff;
+    font-family: sans-serif;
+    text-shadow: 1px 1px 6px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 15px rgba(255, 117, 140, 0.25);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2239,6 +2260,8 @@ def render_result(r, raw_data=None):
     # Custom display for ticker CHAD
     if r["ticker"].strip().upper() == "CHAD":
         st.markdown('<div class="rainbow-box">🌈 chad is gay 🌈</div>', unsafe_allow_html=True)
+    elif r["ticker"].strip().upper() == "JEN":
+        st.markdown('<div class="rose-box">💖 Jen is the most beautiful boo boo 💖</div>', unsafe_allow_html=True)
 
     # Render share link copy box - highly visible single container with green highlight
     share_url = f"https://traderanalysisbot.streamlit.app/?ticker={r['ticker']}"
