@@ -350,7 +350,7 @@ def _yf_call_optional(fn, default=None):
         return default
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def fetch_basic_data(symbol):
+def fetch_basic_data(symbol, category=None):
     symbol_clean = symbol.strip().upper()
     
     # 1. Fetch History (Highly stable GET endpoint)
@@ -416,12 +416,7 @@ def fetch_basic_data(symbol):
         except Exception:
             pass
 
-        active_cat = "  🏥 Biotechnology"
-        try:
-            if "active_category" in st.session_state:
-                active_cat = st.session_state["active_category"]
-        except Exception:
-            pass
+        active_cat = category or "  🏥 Biotechnology"
         parent_sec, sub_cat = resolve_sector_and_sub(active_cat)
         
         fallback_sector = search_meta.get("sector")
@@ -530,7 +525,7 @@ def fetch_detailed_metrics(symbol):
     return bs_q, cf_q, inc_q, inst, insiders, exps, cal
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def fetch_only_info(symbol):
+def fetch_only_info(symbol, category=None):
     symbol_clean = symbol.strip().upper()
     t = yf.Ticker(symbol_clean, session=_session)
     info = None
@@ -584,12 +579,7 @@ def fetch_only_info(symbol):
                 pass
 
         if last_price > 0 or search_meta:
-            active_cat = "  🏥 Biotechnology"
-            try:
-                if "active_category" in st.session_state:
-                    active_cat = st.session_state["active_category"]
-            except Exception:
-                pass
+            active_cat = category or "  🏥 Biotechnology"
             parent_sec, sub_cat = resolve_sector_and_sub(active_cat)
             
             fallback_sector = search_meta.get("sector")
@@ -637,7 +627,7 @@ def _fetch_google_news_rss(ticker):
     except Exception:
         return []
 
-def fetch_ticker_data(symbol, full=True):
+def fetch_ticker_data(symbol, full=True, category=None):
     symbol_clean = symbol.strip().upper()
     if symbol_clean == "JEN":
         return {
@@ -664,14 +654,14 @@ def fetch_ticker_data(symbol, full=True):
     
     if not full:
         # Optimization: Quick scan only needs info for R1 scoring
-        info = fetch_only_info(symbol_clean)
+        info = fetch_only_info(symbol_clean, category=category)
         return {
             "symbol": symbol_clean, "info": info, "hist": None, "hist_3m": None,
             "bs_q": None, "cf_q": None, "inc_q": None, "inst": None, "insiders": None,
             "options": [], "analyst": {}, "cal": {}, "full": False, "news": rss_news
         }
         
-    info, hist = fetch_basic_data(symbol_clean)
+    info, hist = fetch_basic_data(symbol_clean, category=category)
     bs_q, cf_q, inc_q, inst, insiders, exps, cal = fetch_detailed_metrics(symbol_clean)
     
     news = []
@@ -691,6 +681,37 @@ def fetch_ticker_data(symbol, full=True):
     return {"symbol":symbol_clean,"info":info,"hist":hist,"hist_3m":None,
             "bs_q":bs_q,"cf_q":cf_q,"inc_q":inc_q,"inst":inst,"insiders":insiders,
             "options":exps,"analyst":{},"cal":cal, "full": True, "news": news}
+
+def fetch_ticker_data_batch(tickers, full=False, category=None):
+    """
+    Fetches ticker data for a batch of symbols concurrently using a ThreadPoolExecutor.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results = {}
+    
+    if not tickers:
+        return results
+        
+    max_workers = min(12, len(tickers))
+    
+    def _fetch_single(symbol):
+        # Stagger requests slightly to prevent rate limits
+        _time.sleep(_random.uniform(0.01, 0.08))
+        return fetch_ticker_data(symbol, full=full, category=category)
+        
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ticker = {executor.submit(_fetch_single, t): t for t in tickers}
+        for future in as_completed(future_to_ticker):
+            t = future_to_ticker[future]
+            try:
+                results[t] = future.result()
+            except Exception:
+                results[t] = {
+                    "symbol": t, "info": {}, "hist": None, "hist_3m": None,
+                    "bs_q": None, "cf_q": None, "inc_q": None, "inst": None, "insiders": None,
+                    "options": [], "analyst": {}, "cal": {}, "full": full, "news": []
+                }
+    return results
 
 # ── Helper parsing functions ──────────────────────────────────────────────────
 
@@ -1840,7 +1861,7 @@ def score_r8_adversarial(d):
 # ── Master scorers ────────────────────────────────────────────────────────────
 
 def screen_ticker(symbol, category="  🏥 Biotechnology", full=True):
-    data = fetch_ticker_data(symbol, full=full)
+    data = fetch_ticker_data(symbol, full=full, category=category)
     info = data.get("info", {})
     hist = data.get("hist")
     price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
@@ -3004,24 +3025,29 @@ def main():
             st.markdown("<span style='color:#666;font-size:12px'>Click Run NASDAQ R1-PASS Scan to populate.</span>", unsafe_allow_html=True)
 
     # ── Incremental Scanning Processor (Sector Mode) ──
-    if (st.session_state.app_mode == "🔍 Sector Universe Scanner" 
-            and st.session_state.bulk_scanning 
-            and st.session_state.bulk_queue 
+    if (st.session_state.app_mode == "🔍 Sector Universe Scanner"
+            and st.session_state.bulk_scanning
+            and st.session_state.bulk_queue
             and not st.session_state.selected_sector_ticker):
-        batch_size = 1
+        batch_size = 30
         batch_tickers = []
         for _ in range(batch_size):
             if st.session_state.bulk_queue:
                 batch_tickers.append(st.session_state.bulk_queue.pop(0))
         
         target_parent, _ = resolve_sector_and_sub(st.session_state.active_category)
+        
+        # Concurrent batch fetch
+        batch_data = fetch_ticker_data_batch(batch_tickers, full=False, category=st.session_state.active_category)
+        
         for next_ticker in batch_tickers:
             st.session_state.bulk_scanned_count += 1
             if next_ticker.upper() in ("JEN", "CHAD"):
                 continue
-            _time.sleep(_random.uniform(0.15, 0.3))
             try:
-                raw_data = fetch_ticker_data(next_ticker, full=False)
+                raw_data = batch_data.get(next_ticker)
+                if not raw_data or not raw_data.get("info"):
+                    continue
                 res = screen_ticker_from_data(next_ticker, raw_data, category=st.session_state.active_category)
                 
                 # Filter strictly by actual parent sector!
@@ -3041,19 +3067,23 @@ def main():
             and st.session_state.nasdaq_scanning 
             and st.session_state.nasdaq_queue 
             and not st.session_state.selected_nasdaq_ticker):
-        batch_size = 1
+        batch_size = 30
         batch_tickers = []
         for _ in range(batch_size):
             if st.session_state.nasdaq_queue:
                 batch_tickers.append(st.session_state.nasdaq_queue.pop(0))
                 
+        # Concurrent batch fetch
+        batch_data = fetch_ticker_data_batch(batch_tickers, full=False, category="⚡ NASDAQ R1-PASS Quick Scan")
+        
         for next_ticker in batch_tickers:
             st.session_state.nasdaq_scanned_count += 1
             if next_ticker.upper() in ("JEN", "CHAD"):
                 continue
-            _time.sleep(_random.uniform(0.15, 0.3))
             try:
-                raw_data = fetch_ticker_data(next_ticker, full=False)
+                raw_data = batch_data.get(next_ticker)
+                if not raw_data or not raw_data.get("info"):
+                    continue
                 res = screen_ticker_from_data(next_ticker, raw_data, category="⚡ NASDAQ R1-PASS Quick Scan")
                 if res["overall"] == "PASS":
                     st.session_state.nasdaq_results = [r for r in st.session_state.nasdaq_results if r["ticker"] != res["ticker"]]
