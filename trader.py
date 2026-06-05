@@ -638,6 +638,27 @@ def _fetch_google_news_rss(ticker):
 
 def fetch_ticker_data(symbol, full=True):
     symbol_clean = symbol.strip().upper()
+    if symbol_clean == "JEN":
+        return {
+            "symbol": "JEN",
+            "info": {
+                "symbol": "JEN",
+                "shortName": "Jennifer",
+                "longName": "Jennifer - Speculative Love Moat",
+                "currentPrice": 999.99,
+                "regularMarketPrice": 999.99,
+                "sector": "Speculative Love & Beauty",
+                "industry": "Beautiful Boo Boo",
+                "longBusinessSummary": "Jen is the most beautiful boo boo, possessing an unassailable speculative love moat with endless upside and zero downside.",
+                "totalCash": 50000000000.0,
+                "marketCap": 777000000000.0,
+                "averageVolume": 10000000.0,
+                "heldPercentInstitutions": 1.0,
+            },
+            "hist": None, "hist_3m": None, "bs_q": None, "cf_q": None, "inc_q": None,
+            "inst": None, "insiders": None, "options": [], "analyst": {}, "cal": {},
+            "full": True, "news": []
+        }
     rss_news = _fetch_google_news_rss(symbol_clean)
     
     if not full:
@@ -1827,6 +1848,54 @@ def screen_ticker(symbol, category="  🏥 Biotechnology", full=True):
     return screen_ticker_from_data(symbol, data, category)
 
 def screen_ticker_from_data(symbol, data, category="  🏥 Biotechnology"):
+    symbol_clean = symbol.strip().upper()
+    if symbol_clean == "JEN":
+        return {
+            "ticker": "JEN",
+            "name": "Jennifer - Speculative Love Moat",
+            "price": "$999.99",
+            "price_raw": 999.99,
+            "market_cap": "$777.0B",
+            "cash": "$50.0B",
+            "sector": "Speculative Love & Beauty",
+            "catalyst": "Love catalyst active 24/7 with zero decay.",
+            "numeric_score": 10,
+            "overall": "PASS",
+            "hardest_rule": "R1 (EV Gate) — Central EV: Infinite. Unparalleled success based on beauty metrics.",
+            "verdict_summary": "8/8 rules PASS, 0 WARN, 0 FAIL. Score 10/10.",
+            "data_note": "Easter egg: Jen is the most beautiful boo boo.",
+            "timestamp": datetime.now().isoformat(),
+            "category": "💖 Speculative Love Moat",
+            "is_nasdaq_quick": False,
+            "r1_details": {
+                "price": 999.99,
+                "mean_t": 9999.99,
+                "high_t": 99999.99,
+                "low_t": 999.99,
+                "p_win": 1.0,
+                "loss_floor": 1.0,
+                "central_ev": 10.0,
+                "halved_ev": 5.0,
+                "phase": "Easter Egg - Unassailable Love Moat",
+                "is_greenfield": False
+            },
+            "full": True,
+            "avg_volume": "10.0M",
+            "inst_pct": "100.0%",
+            "quarterly_rev": "$25.0B",
+            "hist": None,
+            "summary": "Jen is the most beautiful boo boo, possessing an unassailable speculative love moat with endless upside and zero downside.",
+            "rules": {
+                "R1": {"verdict": "PASS", "finding": "Central EV: Infinite. Extremely high probability of success based on unparalleled beauty and love metrics."},
+                "R2": {"verdict": "PASS", "finding": "Love catalyst is active 24/7 with zero decay."},
+                "R3": {"verdict": "PASS", "finding": "Capital is infinite and backed by endless affection."},
+                "R4": {"verdict": "PASS", "finding": "100% ownership by the most important stakeholders (boo boo)."},
+                "R5": {"verdict": "PASS", "finding": "Possesses an unassailable, proprietary beautiful boo boo moat."},
+                "R6": {"verdict": "PASS", "finding": "Highly liquid asset; exit is impossible because we are holding forever."},
+                "R7": {"verdict": "PASS", "finding": "Fully insulated from all market risks. Ring-fenced with absolute safety."},
+                "R8": {"verdict": "PASS", "finding": "No bear paths exist. Insiders are 100% long."}
+            }
+        }
     info    = data["info"]
     bs      = data["bs_q"]
     inst    = data["inst"]
